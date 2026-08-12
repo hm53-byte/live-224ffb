@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="hr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Live">
+<meta name="theme-color" content="#000000">
+<meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" href="./icon-192.png">
+<title>Live</title>
+<style>
+  :root{
+    --pink:#FE2C55;
+    --cyan:#25F4EE;
+    --top: env(safe-area-inset-top, 0px);
+    --bot: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box; -webkit-user-select:none; user-select:none;
+    -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;overscroll-behavior:none;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:#fff;touch-action:manipulation;}
+
+  #stage{position:fixed;inset:0;height:100dvh;overflow:hidden;background:#000;}
+  video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    transform:scaleX(-1);background:#000;}
+  video.no-mirror{transform:none;}
+
+  .shade-top{position:absolute;top:0;left:0;right:0;height:24vh;pointer-events:none;
+    background:linear-gradient(to bottom,rgba(0,0,0,.55),rgba(0,0,0,0));}
+  .shade-bottom{position:absolute;bottom:0;left:0;right:0;height:46vh;pointer-events:none;
+    background:linear-gradient(to top,rgba(0,0,0,.65),rgba(0,0,0,0));}
+
+  .ui{transition:opacity .25s;}
+  .ui.hidden{opacity:0;}
+
+  /* ---------- GORNJA TRAKA ---------- */
+  .top{position:absolute;top:calc(var(--top) + 10px);left:0;right:0;padding:0 12px;
+    display:flex;align-items:flex-start;gap:8px;}
+
+  .host{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.34);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    border-radius:999px;padding:3px 14px 3px 3px;min-width:0;}
+  .avatar{width:34px;height:34px;border-radius:50%;flex:0 0 auto;overflow:hidden;
+    background:linear-gradient(135deg,#ff5f8f,#fe2c55 60%,#8a1030);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;
+    border:1.5px solid rgba(255,255,255,.9);}
+  .avatar img{width:100%;height:100%;object-fit:cover;display:block;}
+  .host-meta{display:flex;flex-direction:column;line-height:1.15;min-width:0;}
+  .host-name{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;max-width:38vw;display:flex;align-items:center;gap:4px;}
+  .host-name .nm{overflow:hidden;text-overflow:ellipsis;}
+  .vrf{width:13px;height:13px;flex:0 0 auto;display:none;}
+  .vrf.on{display:block;}
+  .host-sub{font-size:10.5px;opacity:.78;white-space:nowrap;}
+
+  .viewers{display:flex;align-items:center;margin-left:6px;}
+  .viewers .v{width:24px;height:24px;border-radius:50%;margin-left:-7px;
+    border:1.5px solid rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:700;}
+
+  .top-right{margin-left:auto;display:flex;align-items:center;gap:6px;flex:0 0 auto;}
+  .pill{display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.38);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    border-radius:999px;padding:6px 10px;font-size:12.5px;font-weight:600;}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--pink);
+    box-shadow:0 0 0 0 rgba(254,44,85,.7);animation:pulse 1.8s infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(254,44,85,.7)}
+    70%{box-shadow:0 0 0 9px rgba(254,44,85,0)}
+    100%{box-shadow:0 0 0 0 rgba(254,44,85,0)}
+  }
+  .eye{width:14px;height:14px;opacity:.95}
+  .xbtn{width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.38);
+    display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:300;opacity:.9}
+
+  /* ---------- BANNERI ---------- */
+  .banners{position:absolute;left:12px;top:calc(var(--top) + 58px);
+    display:flex;flex-direction:column;gap:6px;width:min(74vw,330px);}
+  .banner{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border-radius:999px;
+    font-size:12.5px;font-weight:600;animation:slideIn .35s ease-out, fadeOut .5s ease-in 4.4s forwards;
+    box-shadow:0 2px 12px rgba(0,0,0,.25);}
+  .banner.join{background:linear-gradient(90deg,rgba(37,244,238,.85),rgba(37,244,238,.12));}
+  .banner.gift{background:linear-gradient(90deg,rgba(254,44,85,.9),rgba(254,44,85,.12));}
+  .banner .b-av{width:24px;height:24px;border-radius:50%;flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+    background:rgba(0,0,0,.35);}
+  .banner .b-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    text-shadow:0 1px 2px rgba(0,0,0,.4);}
+  @keyframes slideIn{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+  @keyframes fadeOut{to{opacity:0;transform:translateY(-6px)}}
+
+  /* ---------- CHAT ---------- */
+  #chat{position:absolute;left:10px;bottom:calc(var(--bot) + 66px);width:min(78vw,400px);
+    max-height:42vh;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;
+    gap:5px;pointer-events:none;
+    -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,0) 0%,rgba(0,0,0,.35) 12%,#000 34%,#000 100%);
+    mask-image:linear-gradient(to bottom,rgba(0,0,0,0) 0%,rgba(0,0,0,.35) 12%,#000 34%,#000 100%);}
+  .msg{background:rgba(0,0,0,.30);border-radius:14px;padding:6px 11px;
+    font-size:13px;line-height:1.35;width:fit-content;max-width:100%;
+    animation:msgIn .3s ease-out;word-wrap:break-word;
+    text-shadow:0 1px 2px rgba(0,0,0,.35);}
+  .msg .u{color:#bfc6cf;font-weight:600;margin-right:5px;}
+  .msg.mod .u{color:var(--cyan);}
+  .msg.top-fan .u{color:#ffd54a;}
+  .msg .badge{display:inline-block;font-size:9.5px;font-weight:800;padding:1px 5px;border-radius:4px;
+    margin-right:5px;vertical-align:1px;letter-spacing:.3px;}
+  .badge.lvl{background:linear-gradient(90deg,#7b5cff,#c04bff);}
+  .badge.mod{background:linear-gradient(90deg,#00b3c7,#25F4EE);color:#04303a;}
+  @keyframes msgIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* ---------- SRCA ---------- */
+  #hearts{position:absolute;right:6px;bottom:calc(var(--bot) + 62px);
+    width:130px;height:62vh;pointer-events:none;overflow:hidden;}
+  .heart{position:absolute;bottom:0;font-size:26px;animation:float 4s linear forwards;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));}
+  @keyframes float{
+    0%{opacity:0;transform:translate(0,0) scale(.4)}
+    12%{opacity:1;transform:translate(6px,-8vh) scale(1)}
+    50%{transform:translate(-26px,-32vh) scale(1.05)}
+    75%{opacity:.9;transform:translate(20px,-46vh) scale(.95)}
+    100%{opacity:0;transform:translate(-6px,-60vh) scale(.7)}
+  }
+
+  /* ---------- DONJA TRAKA ---------- */
+  .bottom{position:absolute;left:0;right:0;bottom:0;
+    padding:10px 12px calc(var(--bot) + 12px);
+    display:flex;align-items:center;gap:8px;}
+  .comment{flex:1;background:rgba(0,0,0,.34);border:1px solid rgba(255,255,255,.16);
+    border-radius:999px;padding:9px 14px;font-size:13px;color:rgba(255,255,255,.72);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);white-space:nowrap;overflow:hidden;}
+  .ico{width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.34);
+    display:flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+  .ico.gift{background:linear-gradient(135deg,#ffb03a,#ff5f3a);}
+
+  .wm{position:absolute;right:12px;top:calc(var(--top) + 46px);font-size:11px;font-weight:700;
+    opacity:.55;letter-spacing:.4px;}
+
+  /* ---------- POSTAVKE ---------- */
+  #gear{position:absolute;left:10px;bottom:calc(var(--bot) + 8px);
+    width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.4);
+    display:flex;align-items:center;justify-content:center;font-size:16px;
+    opacity:.14;transition:opacity .3s;z-index:30;}
+  #gear.show{opacity:.85;}
+
+  #sheet{position:absolute;left:0;right:0;bottom:0;z-index:45;
+    background:rgba(16,16,18,.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    border-top-left-radius:20px;border-top-right-radius:20px;
+    padding:8px 14px calc(var(--bot) + 14px);
+    max-height:82dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    transform:translateY(102%);transition:transform .28s ease;}
+  #sheet.open{transform:none;}
+  .grab{width:38px;height:4px;border-radius:2px;background:rgba(255,255,255,.25);
+    margin:6px auto 10px;}
+  .ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  .ph b{font-size:17px;}
+  .done{color:var(--pink);font-weight:700;font-size:15px;padding:6px 4px;}
+  .sec{font-size:11px;letter-spacing:.6px;text-transform:uppercase;opacity:.45;
+    margin:14px 0 7px;}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .lab{font-size:13px;opacity:.7;width:88px;flex:0 0 auto;}
+  .btn{flex:1;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.13);
+    color:#fff;font-size:14px;font-weight:600;padding:12px 8px;border-radius:13px;
+    text-align:center;line-height:1.1;}
+  .btn:active{background:rgba(255,255,255,.2);}
+  .btn.on{background:var(--pink);border-color:transparent;}
+  .btn.sm{flex:0 0 62px;}
+  .fld{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.13);
+    color:#fff;font-size:15px;padding:11px 12px;border-radius:13px;min-width:0;
+    -webkit-user-select:text;user-select:text;}
+  .val{width:52px;text-align:center;font-size:13px;opacity:.75;flex:0 0 auto;}
+  .pic{width:52px;height:52px;border-radius:50%;flex:0 0 auto;overflow:hidden;
+    background:linear-gradient(135deg,#ff5f8f,#fe2c55);display:flex;align-items:center;
+    justify-content:center;font-weight:700;font-size:20px;border:1px solid rgba(255,255,255,.25);}
+  .pic img{width:100%;height:100%;object-fit:cover;display:block;}
+  .hint{font-size:11.5px;opacity:.45;line-height:1.45;margin-top:12px;}
+
+  /* ---------- POCETNI ZASLON ---------- */
+  #start{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:16px;text-align:center;padding:26px;z-index:60;}
+  #start h1{font-size:22px;margin:0;font-weight:800;letter-spacing:-.3px;}
+  #start p{margin:0;opacity:.66;font-size:14px;max-width:400px;line-height:1.5;}
+  #go{background:var(--pink);border:0;color:#fff;font-size:17px;font-weight:700;
+    padding:15px 40px;border-radius:999px;}
+  #err{color:#ff8fa3;font-size:13px;max-width:400px;line-height:1.45;}
+  #ready{font-size:13px;font-weight:600;padding:10px 16px;border-radius:999px;
+    max-width:420px;line-height:1.4;border:1px solid transparent;}
+  #ready.wait{background:rgba(255,159,10,.14);color:#ffb454;border-color:rgba(255,159,10,.3);}
+  #ready.ok{background:rgba(52,199,89,.14);color:#5ede82;border-color:rgba(52,199,89,.3);}
+  #ready.bad{background:rgba(255,69,58,.14);color:#ff8f86;border-color:rgba(255,69,58,.3);}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <video id="cam" autoplay playsinline muted></video>
+  <div class="shade-top"></div>
+  <div class="shade-bottom"></div>
+
+  <div class="ui" id="ui">
+    <div class="top">
+      <div class="host">
+        <div class="avatar" id="hostAv">H</div>
+        <div class="host-meta">
+          <div class="host-name">
+            <span class="nm" id="hostName">Live</span>
+            <svg class="vrf" id="vrf" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="#20D5EC" d="M12 1.5 14.6 4l3.5-.4 1 3.4 3.1 1.7-1.4 3.3 1.4 3.3-3.1 1.7-1 3.4-3.5-.4L12 22.5 9.4 20l-3.5.4-1-3.4L1.8 15.3l1.4-3.3-1.4-3.3L4.9 7l1-3.4L9.4 4z"/>
+              <path fill="#fff" d="m10.8 15.6-3-3 1.3-1.3 1.7 1.7 4.2-4.2 1.3 1.3z"/>
+            </svg>
+          </div>
+          <div class="host-sub"><span id="followers">128.4K</span> pratitelja</div>
+        </div>
+      </div>
+
+      <div class="viewers" id="miniViewers"></div>
+
+      <div class="top-right">
+        <div class="pill"><span class="live-dot"></span><span id="timer">0:00</span></div>
+        <div class="pill">
+          <svg class="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12Z"/>
+            <circle cx="12" cy="12" r="3.2"/>
+          </svg>
+          <span id="count">100.2K</span>
+        </div>
+        <div class="xbtn">&#10005;</div>
+      </div>
+    </div>
+
+    <div class="wm" id="wm">LIVE</div>
+    <div class="banners" id="banners"></div>
+    <div id="chat"></div>
+    <div id="hearts"></div>
+
+    <div class="bottom">
+      <div class="comment" id="commentBox">Dodaj komentar...</div>
+      <div class="ico">&#9825;</div>
+      <div class="ico">&#8631;</div>
+      <div class="ico gift">&#127873;</div>
+    </div>
+  </div>
+
+  <div id="gear">&#9881;</div>
+
+  <div id="sheet">
+    <div class="grab"></div>
+    <div class="ph"><b>Postavke</b><span class="done" id="bClose">Gotovo</span></div>
+
+    <div class="sec">Profil</div>
+    <div class="row">
+      <div class="pic" id="picPrev">H</div>
+      <label class="btn" for="fPic">Odaberi sliku</label>
+      <div class="btn" id="bPicClear">Ukloni</div>
+    </div>
+    <input id="fPic" type="file" accept="image/*" style="display:none">
+    <div class="row">
+      <span class="lab">Ime</span>
+      <input class="fld" id="fName" type="text" value="Live" autocapitalize="off" autocomplete="off">
+    </div>
+    <div class="row">
+      <span class="lab">Pratitelji</span>
+      <input class="fld" id="fFollowers" type="number" inputmode="numeric" value="128400">
+    </div>
+    <div class="row">
+      <span class="lab">Kvacica</span>
+      <div class="btn" id="bVerified">Verificiran racun</div>
+    </div>
+
+    <div class="sec">Live</div>
+    <div class="row">
+      <span class="lab">Gledatelji</span>
+      <input class="fld" id="fViewers" type="number" inputmode="numeric" value="100200">
+    </div>
+    <div class="row">
+      <span class="lab">Chat</span>
+      <div class="btn sm" id="bSlow">&minus;</div>
+      <div class="val" id="vChat">750</div>
+      <div class="btn sm" id="bFast">+</div>
+      <div class="btn" id="bChatOff">Chat radi</div>
+    </div>
+    <div class="row">
+      <span class="lab">Srca</span>
+      <div class="btn sm" id="bHeartLess">&minus;</div>
+      <div class="val" id="vHeart">420</div>
+      <div class="btn sm" id="bHeartMore">+</div>
+      <div class="btn" id="bBanners">Baneri rade</div>
+    </div>
+    <div class="row">
+      <span class="lab">Oznaka</span>
+      <input class="fld" id="fWm" type="text" value="LIVE" maxlength="16">
+    </div>
+
+    <div class="sec">Kamera i prikaz</div>
+    <div class="row">
+      <div class="btn" id="bFlip">Okreni kameru</div>
+      <div class="btn on" id="bMirror">Zrcaljenje</div>
+    </div>
+    <div class="row">
+      <div class="btn" id="bHide">Sakrij sucelje</div>
+      <div class="btn" id="bReset">Vrati zadano</div>
+    </div>
+
+    <div class="hint">Sve se pamti na telefonu i ostaje nakon zatvaranja.
+      Dodir po ekranu salje srca. Za puni ekran dodaj aplikaciju na pocetni zaslon
+      i pokreni je s ikone.</div>
+  </div>
+</div>
+
+<div id="start">
+  <h1>Live</h1>
+  <p>Klikni Pokreni i dozvoli pristup kameri. Ime, sliku profila i ostalo mijenjas
+     u postavkama (zupcanik dolje lijevo).</p>
+  <button id="go">Pokreni</button>
+  <div id="err"></div>
+  <div id="ready" class="wait">Provjeravam...</div>
+</div>
+
+<script>
+/* ---------- SPREMLJENE POSTAVKE ---------- */
+const DEF = {
+  name:"Live", pic:"", followers:128400, verified:true,
+  viewers:100200, chatMs:750, heartMs:420, chatOn:true, bannersOn:true,
+  wm:"LIVE", mirror:true, facing:"user"
+};
+let CFG = Object.assign({}, DEF);
+try{
+  const s = JSON.parse(localStorage.getItem("liveCfg"));
+  if(s) CFG = Object.assign(CFG, s);
+}catch(e){}
+function save(){ try{ localStorage.setItem("liveCfg", JSON.stringify(CFG)); }catch(e){} }
+
+/* ---------- IMENA ---------- */
+const first = ["ana","ivan","marko","luka","petra","josip","maja","nikola","sara","tomislav",
+"ivana","filip","dora","matej","lucija","antonio","karlo","nina","stjepan","tea","david","mia",
+"borna","klara","roko","lana","vedran","iva","dario","marta","hrvoje","paula","zvonimir","ema",
+"kristijan","valentina","damir","katarina","goran","martina","bruno","doris","igor","jelena",
+"sandra","denis","barbara","zoran","mateo","gabrijela","fran","laura","toni","dunja","kreso",
+"silvija","bojan","andrea","vlatko","helena","dino","tina","sinisa","monika","robert","anja"];
+const last  = ["horvat","kovacevic","babic","maric","juric","novak","kovacic","knezevic","vukovic",
+"markovic","petrovic","matic","tomic","filipovic","pavlovic","bosnjak","grgic","blazevic","peric",
+"vidovic","segota","radic","brkic","lovric","pavic","saric","kolar","bakic","dujmovic","zupan"];
+const suff  = ["","_hr","_zg","98","2001","_official","xx","_st","1990","007","_split","_os",
+"_ri","__","_92","_live","ic","_bt","23","_zd","hrv","_pula","95","_00","_tz","_vk"];
+const pre   = ["","the_","its_","real_","x_","mr_","miss_","dj_","_",""];
+
+function randUser(){
+  const r = Math.random();
+  let n;
+  if(r < 0.45) n = first[Math.random()*first.length|0] + "." + last[Math.random()*last.length|0];
+  else if(r < 0.75) n = first[Math.random()*first.length|0] + "_" + last[Math.random()*last.length|0];
+  else n = first[Math.random()*first.length|0] + last[Math.random()*last.length|0].slice(0,3);
+  n = pre[Math.random()*pre.length|0] + n + suff[Math.random()*suff.length|0];
+  return n.slice(0,20);
+}
+
+/* ---------- PORUKE ---------- */
+const MSGS = [
+"pozdrav iz Zagreba \u{1F44B}","dobar live \u{1F525}","pozdravi me molim te",
+"koliko vas ima?!","prvi put gledam, super je","pozdrav iz Splita","\u{1F525}\u{1F525}\u{1F525}",
+"bok ekipa","kako si danas?","ide li ovo i sutra?","pozdrav iz Osijeka \u{1F49A}",
+"jaka je ekipa veceras","haha odlicno","joj kako je smijesno \u{1F602}",
+"kad je sljedeci live?","pratim te vec godinu dana","evo me poslije posla",
+"pozdrav iz Rijeke","zvuk je super","malo pojacaj mikrofon","slika je odlicna",
+"koja aplikacija je to?","legenda si","javi se malo","pusti neku pjesmu",
+"pozdrav iz Njemacke \u{1F1E9}\u{1F1EA}","gledam iz Irske","pozdrav iz Beca",
+"ekipa iz Dalmacije gdje ste","nema veze, super je","daj jos jednom objasni",
+"cekam ovo cijeli dan","ajme koliko ljudi","sto tisuca ljudi ovdje",
+"pozdrav svima \u{1F49B}","tko je jos iz Zadra?","poslao sam ti poruku",
+"molim te pozdrav za Marka","pozdrav za mamu \u{2764}\u{FE0F}","idemooo",
+"koliko traje live?","ostajem do kraja","super ti stoji to",
+"prati me natrag molim te","upravo sam se prikljucio","sta se dogadalo do sad?",
+"ovo je najbolji live danas","jesi li vec jeo?","kakvo je vrijeme kod tebe?",
+"kod nas pada kisa \u{2614}","kod nas sunce \u{2600}\u{FE0F}","pozdrav iz Varazdina",
+"pozdrav iz Siska","kaj ima?","sta ima ekipa","dobra vecer svima",
+"jutro \u{2615}","ovo mora na YouTube","snimas li ovo?",
+"gdje je ostatak ekipe?","dolazim svaki dan","najjaci si \u{1F4AF}",
+"srce \u{2764}\u{FE0F}","saljite srca ekipa","cure gdje ste",
+"decki javite se","pozdrav iz Bosne \u{1F1E7}\u{1F1E6}","pozdrav iz Srbije",
+"pozdrav iz Slovenije \u{1F1F8}\u{1F1EE}","gledam s posla \u{1F60E}",
+"sef me gleda ali svejedno","hahahaha \u{1F602}\u{1F602}",
+"ma daj \u{1F633}","ne mogu vjerovati","stvarno?","to to to",
+"bravo \u{1F44F}","aplauz \u{1F44F}\u{1F44F}","pun pogodak",
+"jesi za kavu?","idem po kavu, odmah se vracam","cekaj ne idi",
+"nemoj zavrsiti jos","jos malo molim te","produzi live",
+"koji filter koristis?","super ti je frizura","lijepa majica",
+"gdje si to kupio?","koliko je sati kod vas?","kod nas je 21h",
+"dijelim live prijateljima","pozvao sam ekipu","evo nas petero gledamo skupa",
+"pozdrav iz auta \u{1F697}","gledam u tramvaju","gledam iz kreveta \u{1F634}",
+"laku noc svima","vidimo se sutra","cuvajte se \u{1F44B}",
+"prvi komentar!","drugi put gledam","najbolja stvar danas",
+"tko jos gleda 2026?","ovo je urnebesno","umirem od smijeha",
+"ozbiljno?","cekaj cekaj","ponovi to",
+"nisam skuzio","objasni jos jednom","sad mi je jasno",
+"hvala na savjetu","korisno je ovo","spremam si biljeske",
+"koliko dugo se time bavis?","odakle si?","koliko imas godina?",
+"super energija \u{26A1}","pozitiva \u{1F31E}","od tebe ucim svaki dan",
+"pozdrav novima","dobrodosli svi","udji u chat ekipa",
+"gdje je gumb za srce","saljite poklone \u{1F381}","poslao sam ruzu \u{1F339}",
+"idemo do dvjesto tisuca","dijelite live","share ekipa",
+"prati prati prati","ostavi like","gledam bez zvuka",
+"vratio se zvuk","sad je bolje","slika se zamrznula kod mene",
+"kod mene sve radi \u{1F44C}","internet mi puca","evo me opet",
+"vratio sam se \u{1F604}","zasto se svi smiju?","sto sam propustio",
+"neka netko napravi sazetak haha","screenshot \u{1F4F8}",
+"ovo ide na story","spremam ovo","najdraza mi je ova ekipa",
+"pozdrav iz Dubrovnika \u{1F3DD}\u{FE0F}","pozdrav iz Zagorja",
+"pozdrav iz Slavonije \u{1F33E}","Istra se javlja \u{1F334}",
+"koja glazba svira?","svida mi se pjesma","kako se zove pjesma?",
+"prijavljujem se \u{270B}","tu sam \u{1F64B}","evo me \u{1F44B}"
+];
+
+const GIFTS = [
+ {n:"Ruzu",e:"\u{1F339}"},{n:"Srce",e:"\u{2764}\u{FE0F}"},{n:"Notu",e:"\u{1F3B5}"},
+ {n:"Prsten",e:"\u{1F48D}"},{n:"Tortu",e:"\u{1F382}"},{n:"Raketu",e:"\u{1F680}"},
+ {n:"Pandu",e:"\u{1F43C}"},{n:"Kavu",e:"\u{2615}"},{n:"Pivo",e:"\u{1F37A}"},
+ {n:"Zvijezde",e:"\u{2728}"},{n:"Krunu",e:"\u{1F451}"},{n:"Balone",e:"\u{1F388}"}
+];
+
+const AVCOLORS = ["#fe2c55","#25f4ee","#7b5cff","#ff9f0a","#34c759","#ff375f",
+"#5ac8fa","#ffd60a","#bf5af2","#ff6482","#30d158","#64d2ff","#ac8e68","#e9967a"];
+const pick = a => a[Math.random()*a.length|0];
+const avStyle = () => "background:" + pick(AVCOLORS);
+const $ = id => document.getElementById(id);
+
+/* ---------- CHAT ---------- */
+const chat = $("chat");
+function addMsg(){
+  const u = randUser();
+  const d = document.createElement("div");
+  const r = Math.random();
+  d.className = "msg" + (r<0.06 ? " mod" : r<0.16 ? " top-fan" : "");
+  let badge = "";
+  if(r < 0.06) badge = '<span class="badge mod">MOD</span>';
+  else if(r < 0.55) badge = '<span class="badge lvl">Lv' + (2 + (Math.random()*48|0)) + '</span>';
+  d.innerHTML = badge + '<span class="u">' + u + '</span>' + pick(MSGS);
+  chat.appendChild(d);
+  while(chat.children.length > 26) chat.removeChild(chat.firstChild);
+}
+
+/* ---------- BANNERI ---------- */
+const banners = $("banners");
+function addBanner(){
+  if(!CFG.bannersOn) return;
+  const u = randUser();
+  const isGift = Math.random() < 0.45;
+  const b = document.createElement("div");
+  b.className = "banner " + (isGift ? "gift" : "join");
+  const g = pick(GIFTS);
+  b.innerHTML = '<div class="b-av" style="'+avStyle()+'">'+u[0].toUpperCase()+'</div>' +
+    '<div class="b-txt">' + (isGift
+      ? u + " poslao/la " + g.n + " " + g.e
+      : u + " se pridruzio/la") + '</div>';
+  banners.appendChild(b);
+  setTimeout(()=>b.remove(), 5100);
+  while(banners.children.length > 3) banners.removeChild(banners.firstChild);
+}
+
+/* ---------- SRCA ---------- */
+const heartsBox = $("hearts");
+const HEARTS = ["\u{2764}\u{FE0F}","\u{1F49B}","\u{1F499}","\u{1F49A}","\u{1F49C}","\u{1F9E1}","\u{1F49E}"];
+function addHeart(){
+  const h = document.createElement("div");
+  h.className = "heart";
+  h.textContent = pick(HEARTS);
+  h.style.right = (Math.random()*60) + "px";
+  h.style.animationDuration = (3.2 + Math.random()*2.2) + "s";
+  h.style.fontSize = (18 + Math.random()*16) + "px";
+  heartsBox.appendChild(h);
+  setTimeout(()=>h.remove(), 5600);
+}
+
+/* ---------- BROJAC GLEDATELJA ---------- */
+const countEl = $("count");
+let viewers = CFG.viewers;
+function fmt(n){
+  if(n >= 1000000) return (n/1000000).toFixed(1) + "M";
+  if(n >= 1000) return (n/1000).toFixed(1) + "K";
+  return String(Math.round(n));
+}
+function tickViewers(){
+  const base = CFG.viewers;
+  viewers += (Math.random()*base*0.009|0) - base*0.004;
+  if(viewers < base*0.96) viewers += base*0.012;
+  if(viewers > base*1.18) viewers -= base*0.015;
+  countEl.textContent = fmt(Math.round(viewers));
+}
+
+const mv = $("miniViewers");
+function buildMiniViewers(){
+  mv.innerHTML = "";
+  for(let i=0;i<3;i++){
+    const u = randUser();
+    const d = document.createElement("div");
+    d.className = "v";
+    d.style.cssText = avStyle();
+    d.textContent = u[0].toUpperCase();
+    mv.appendChild(d);
+  }
+}
+
+/* ---------- TAJMER ---------- */
+const timerEl = $("timer");
+let sec = 0;
+setInterval(()=>{
+  sec++;
+  const h = (sec/3600)|0, m = ((sec%3600)/60)|0, s = sec%60;
+  timerEl.textContent = (h ? h + ":" + String(m).padStart(2,"0") : m) + ":" + String(s).padStart(2,"0");
+}, 1000);
+
+/* ---------- PRIMJENA POSTAVKI ---------- */
+const video = $("cam");
+function applyProfile(){
+  $("hostName").textContent = CFG.name || "Live";
+  const letter = (CFG.name || "L").replace(/[@\s]/g,"")[0] || "L";
+  const avHtml = CFG.pic
+    ? '<img src="' + CFG.pic + '" alt="">'
+    : letter.toUpperCase();
+  $("hostAv").innerHTML = avHtml;
+  $("picPrev").innerHTML = avHtml;
+  $("followers").textContent = fmt(CFG.followers);
+  $("vrf").classList.toggle("on", !!CFG.verified);
+  $("bVerified").classList.toggle("on", !!CFG.verified);
+  $("wm").textContent = CFG.wm;
+  $("wm").style.display = CFG.wm ? "" : "none";
+}
+
+let chatTimer = null, heartTimer = null, bannerTimer = null, viewerTimer = null;
+function restartChat(){
+  clearInterval(chatTimer);
+  if(!CFG.chatOn) return;
+  chatTimer = setInterval(()=>{
+    addMsg();
+    if(Math.random() < 0.35) setTimeout(addMsg, CFG.chatMs*0.35);
+  }, CFG.chatMs);
+}
+function restartHearts(){
+  clearInterval(heartTimer);
+  heartTimer = setInterval(addHeart, CFG.heartMs);
+}
+function applyLive(){
+  $("vChat").textContent = CFG.chatMs;
+  $("vHeart").textContent = CFG.heartMs;
+  $("bChatOff").classList.toggle("on", CFG.chatOn);
+  $("bChatOff").textContent = CFG.chatOn ? "Chat radi" : "Chat stoji";
+  $("bBanners").classList.toggle("on", CFG.bannersOn);
+  $("bBanners").textContent = CFG.bannersOn ? "Baneri rade" : "Baneri iskljuceni";
+  $("bMirror").classList.toggle("on", CFG.mirror);
+  video.classList.toggle("no-mirror", !CFG.mirror);
+}
+function fillFields(){
+  $("fName").value = CFG.name;
+  $("fFollowers").value = CFG.followers;
+  $("fViewers").value = CFG.viewers;
+  $("fWm").value = CFG.wm;
+}
+applyProfile(); applyLive(); fillFields();
+
+function startLoops(){
+  for(let i=0;i<12;i++) addMsg();
+  restartChat();
+  restartHearts();
+  bannerTimer = setInterval(addBanner, 2600);
+  viewerTimer = setInterval(tickViewers, 1400);
+  setInterval(buildMiniViewers, 9000);
+  buildMiniViewers();
+  viewers = CFG.viewers;
+  tickViewers();
+}
+
+/* ---------- KAMERA ---------- */
+const errEl = $("err");
+let stream = null;
+async function startCam(){
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  stream = await navigator.mediaDevices.getUserMedia({
+    video:{ width:{ideal:1920}, height:{ideal:1080}, facingMode:{ideal:CFG.facing} },
+    audio:false
+  });
+  video.srcObject = stream;
+  await video.play();
+}
+
+let wake = null;
+async function keepAwake(){
+  try{ if("wakeLock" in navigator) wake = await navigator.wakeLock.request("screen"); }catch(e){}
+}
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState === "visible"){ wake = null; keepAwake(); }
+});
+
+$("go").addEventListener("click", async ()=>{
+  errEl.textContent = "";
+  try{
+    await startCam();
+    keepAwake();
+    $("start").style.display = "none";
+    startLoops();
+  }catch(e){
+    errEl.textContent = "Kamera nije dostupna: " + (e.message || e.name) +
+      (window.isSecureContext ? ". Provjeri dozvolu za kameru u postavkama."
+                              : ". Stranica nije na sigurnoj vezi.");
+  }
+});
+
+/* ---------- OTVARANJE POSTAVKI ---------- */
+const gear = $("gear"), sheet = $("sheet"), ui = $("ui");
+let gearTimer;
+function showGear(){
+  gear.classList.add("show");
+  clearTimeout(gearTimer);
+  gearTimer = setTimeout(()=>gear.classList.remove("show"), 4000);
+}
+$("stage").addEventListener("pointerdown", e=>{
+  if(sheet.contains(e.target) || e.target === gear) return;
+  showGear();
+  if(sheet.classList.contains("open")){ sheet.classList.remove("open"); return; }
+  for(let i=0;i<3;i++) setTimeout(addHeart, i*90);
+});
+gear.addEventListener("click", e=>{ e.stopPropagation(); sheet.classList.toggle("open"); showGear(); });
+$("bClose").onclick = ()=> sheet.classList.remove("open");
+
+/* ---------- POLJA ---------- */
+$("fName").addEventListener("input", e=>{ CFG.name = e.target.value; applyProfile(); save(); });
+$("fFollowers").addEventListener("input", e=>{
+  const v = parseInt(e.target.value,10); if(v >= 0){ CFG.followers = v; applyProfile(); save(); }
+});
+$("fViewers").addEventListener("input", e=>{
+  const v = parseInt(e.target.value,10);
+  if(v > 0){ CFG.viewers = v; viewers = v; tickViewers(); save(); }
+});
+$("fWm").addEventListener("input", e=>{ CFG.wm = e.target.value; applyProfile(); save(); });
+
+/* slika profila: smanji na 200px i spremi u memoriju telefona */
+$("fPic").addEventListener("change", e=>{
+  const f = e.target.files && e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const S = 200, c = document.createElement("canvas");
+      c.width = c.height = S;
+      const ctx = c.getContext("2d");
+      const side = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width-side)/2, (img.height-side)/2, side, side, 0, 0, S, S);
+      CFG.pic = c.toDataURL("image/jpeg", 0.86);
+      applyProfile();
+      try{ save(); }catch(err){}
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(f);
+});
+$("bPicClear").onclick = ()=>{ CFG.pic = ""; applyProfile(); save(); };
+
+/* ---------- PREKIDACI ---------- */
+$("bVerified").onclick = ()=>{ CFG.verified = !CFG.verified; applyProfile(); save(); };
+$("bFast").onclick  = ()=>{ CFG.chatMs = Math.max(120, CFG.chatMs-150); restartChat(); applyLive(); save(); };
+$("bSlow").onclick  = ()=>{ CFG.chatMs = Math.min(3000, CFG.chatMs+150); restartChat(); applyLive(); save(); };
+$("bChatOff").onclick = ()=>{ CFG.chatOn = !CFG.chatOn; restartChat(); applyLive(); save(); };
+$("bHeartMore").onclick = ()=>{ CFG.heartMs = Math.max(80, CFG.heartMs-100); restartHearts(); applyLive(); save(); };
+$("bHeartLess").onclick = ()=>{ CFG.heartMs = Math.min(3000, CFG.heartMs+100); restartHearts(); applyLive(); save(); };
+$("bBanners").onclick = ()=>{ CFG.bannersOn = !CFG.bannersOn; applyLive(); save(); };
+$("bMirror").onclick = ()=>{ CFG.mirror = !CFG.mirror; applyLive(); save(); };
+$("bFlip").onclick = async ()=>{
+  const prev = CFG.facing;
+  CFG.facing = CFG.facing === "user" ? "environment" : "user";
+  CFG.mirror = CFG.facing === "user";
+  try{ await startCam(); applyLive(); save(); }
+  catch(err){ CFG.facing = prev; CFG.mirror = prev === "user"; applyLive(); }
+};
+$("bHide").onclick = function(){
+  ui.classList.toggle("hidden");
+  this.classList.toggle("on", ui.classList.contains("hidden"));
+  sheet.classList.remove("open");
+};
+$("bReset").onclick = ()=>{
+  CFG = Object.assign({}, DEF);
+  save(); fillFields(); applyProfile(); applyLive(); restartChat(); restartHearts();
+  viewers = CFG.viewers; tickViewers();
+};
+
+/* ---------- TIPKOVNICA NA RACUNALU ---------- */
+document.addEventListener("keydown", e=>{
+  if(e.target.tagName === "INPUT") return;
+  const k = e.key.toLowerCase();
+  if(k === "f"){
+    if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+  if(k === "m"){ CFG.mirror = !CFG.mirror; applyLive(); save(); }
+  if(k === "h") ui.classList.toggle("hidden");
+  if(k === "s") sheet.classList.toggle("open");
+});
+
+/* ---------- RAD BEZ MREZE ---------- */
+const CACHE_NAME = "live-v4";
+const isStandalone = () =>
+  (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+  navigator.standalone === true;
+
+function setReady(cls, txt){
+  const el = $("ready");
+  el.className = cls;
+  el.textContent = txt;
+}
+
+async function checkReady(tries){
+  if(!("serviceWorker" in navigator)){
+    setReady("bad", "Ovaj preglednik ne podrzava rad bez mreze.");
+    return;
+  }
+  try{
+    const reg = await navigator.serviceWorker.getRegistration();
+    const c = await caches.open(CACHE_NAME);
+    const hit = await c.match("./index.html", {ignoreSearch:true});
+    if(reg && (reg.active || reg.installing) && hit){
+      setReady("ok", isStandalone()
+        ? "Nacin: aplikacija s ikone. Spremno, radi bez Tailscalea."
+        : "Nacin: Safari. Kopija spremljena, ali jos ne vrijedi za ikonu. Dodaj na pocetni zaslon pa otvori s ikone dok si jos spojen.");
+      return;
+    }
+  }catch(e){}
+  setReady("wait", "Sprema se, ostani spojen jos koji trenutak...");
+  if((tries||0) < 40) setTimeout(()=>checkReady((tries||0)+1), 1500);
+}
+
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("./sw.js", {scope:"./"})
+    .then(()=>checkReady(0))
+    .catch(err=>setReady("bad", "Spremanje nije uspjelo: " + (err.message || err.name)));
+} else {
+  checkReady(0);
+}
+</script>
+</body>
+</html>
