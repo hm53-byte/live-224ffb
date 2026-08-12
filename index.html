@@ -143,11 +143,8 @@
     opacity:.55;letter-spacing:.4px;}
 
   /* ---------- POSTAVKE ---------- */
-  #gear{position:absolute;left:10px;bottom:calc(var(--bot) + 8px);
-    width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.4);
-    display:flex;align-items:center;justify-content:center;font-size:16px;
-    opacity:.14;transition:opacity .3s;z-index:30;}
-  #gear.show{opacity:.85;}
+  .host{cursor:pointer;transition:background .15s;}
+  .host:active{background:rgba(0,0,0,.55);}
 
   #sheet{position:absolute;left:0;right:0;bottom:0;z-index:45;
     background:rgba(16,16,18,.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
@@ -205,7 +202,7 @@
 
   <div class="ui" id="ui">
     <div class="top">
-      <div class="host">
+      <div class="host" id="hostBtn">
         <div class="avatar" id="hostAv">H</div>
         <div class="host-meta">
           <div class="host-name">
@@ -246,8 +243,6 @@
       <div class="ico gift">&#127873;</div>
     </div>
   </div>
-
-  <div id="gear">&#9881;</div>
 
   <div id="sheet">
     <div class="grab"></div>
@@ -308,15 +303,15 @@
     </div>
 
     <div class="hint">Sve se pamti na telefonu i ostaje nakon zatvaranja.
-      Dodir po ekranu salje srca. Za puni ekran dodaj aplikaciju na pocetni zaslon
-      i pokreni je s ikone.</div>
+      Postavke otvaras dodirom na ime i sliku gore lijevo, dodir drugdje salje srca.
+      Kad je sucelje sakriveno, vraca ga dodir po gornjem dijelu ekrana.</div>
   </div>
 </div>
 
 <div id="start">
   <h1>Live</h1>
-  <p>Klikni Pokreni i dozvoli pristup kameri. Ime, sliku profila i ostalo mijenjas
-     u postavkama (zupcanik dolje lijevo).</p>
+  <p>Klikni Pokreni i dozvoli pristup kameri. Postavke se otvaraju dodirom
+     na ime i sliku profila gore lijevo.</p>
   <button id="go">Pokreni</button>
   <div id="err"></div>
   <div id="ready" class="wait">Provjeravam...</div>
@@ -610,20 +605,26 @@ $("go").addEventListener("click", async ()=>{
 });
 
 /* ---------- OTVARANJE POSTAVKI ---------- */
-const gear = $("gear"), sheet = $("sheet"), ui = $("ui");
-let gearTimer;
-function showGear(){
-  gear.classList.add("show");
-  clearTimeout(gearTimer);
-  gearTimer = setTimeout(()=>gear.classList.remove("show"), 4000);
-}
+/* Postavke se otvaraju dodirom na ime i sliku profila gore lijevo. */
+const sheet = $("sheet"), ui = $("ui"), hostBtn = $("hostBtn");
+
 $("stage").addEventListener("pointerdown", e=>{
-  if(sheet.contains(e.target) || e.target === gear) return;
-  showGear();
+  if(sheet.contains(e.target) || hostBtn.contains(e.target)) return;
+  /* dok je sucelje sakriveno, dodir po gornjoj petini ekrana ga vraca */
+  if(ui.classList.contains("hidden")){
+    if(e.clientY < window.innerHeight*0.2){
+      ui.classList.remove("hidden");
+      $("bHide").classList.remove("on");
+    }
+    return;
+  }
   if(sheet.classList.contains("open")){ sheet.classList.remove("open"); return; }
   for(let i=0;i<3;i++) setTimeout(addHeart, i*90);
 });
-gear.addEventListener("click", e=>{ e.stopPropagation(); sheet.classList.toggle("open"); showGear(); });
+hostBtn.addEventListener("click", e=>{
+  e.stopPropagation();
+  sheet.classList.toggle("open");
+});
 $("bClose").onclick = ()=> sheet.classList.remove("open");
 
 /* ---------- POLJA ---------- */
@@ -701,7 +702,7 @@ document.addEventListener("keydown", e=>{
 });
 
 /* ---------- RAD BEZ MREZE ---------- */
-const CACHE_NAME = "live-v4";
+const CACHE_NAME = "live-v5";
 const isStandalone = () =>
   (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
   navigator.standalone === true;

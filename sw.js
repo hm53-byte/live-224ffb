@@ -1,5 +1,5 @@
 /* Sprema stranicu u memoriju uredaja da radi bez mreze i bez Tailscalea. */
-const CACHE = "live-v4";
+const CACHE = "live-v5";
 const FILES = [
   "./",
   "./index.html",
