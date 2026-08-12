@@ -191,6 +191,7 @@
   #ready.wait{background:rgba(255,159,10,.14);color:#ffb454;border-color:rgba(255,159,10,.3);}
   #ready.ok{background:rgba(52,199,89,.14);color:#5ede82;border-color:rgba(52,199,89,.3);}
   #ready.bad{background:rgba(255,69,58,.14);color:#ff8f86;border-color:rgba(255,69,58,.3);}
+  #ver{font-size:11px;opacity:.4;line-height:1.5;word-break:break-all;max-width:90vw;}
 </style>
 </head>
 <body>
@@ -315,6 +316,7 @@
   <button id="go">Pokreni</button>
   <div id="err"></div>
   <div id="ready" class="wait">Provjeravam...</div>
+  <div id="ver"></div>
 </div>
 
 <script>
@@ -733,9 +735,19 @@ async function checkReady(tries){
   if((tries||0) < 40) setTimeout(()=>checkReady((tries||0)+1), 1500);
 }
 
+/* oznaka verzije i izvora, da se odmah vidi koja se kopija pokrece */
+const APP_VERSION = "v5";
+$("ver").textContent = APP_VERSION + " · " + location.host;
+
 if("serviceWorker" in navigator){
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", ()=>{
+    if(reloading) return;
+    reloading = true;
+    location.reload();
+  });
   navigator.serviceWorker.register("./sw.js", {scope:"./"})
-    .then(()=>checkReady(0))
+    .then(reg=>{ try{ reg.update(); }catch(e){} checkReady(0); })
     .catch(err=>setReady("bad", "Spremanje nije uspjelo: " + (err.message || err.name)));
 } else {
   checkReady(0);
